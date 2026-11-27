@@ -1,0 +1,66 @@
+
+services:
+
+  mysql_order:
+    image: mysql:8.0
+    container_name: db_order
+    environment:
+      - MYSQL_ROOT_PASSWORD=${MYSQL_ROOT_PASSWORD:-test}
+      - MYSQL_DATABASE=${MYSQL_DATABASE:-test}
+      - MYSQL_USER=${MYSQL_USER:-test}
+      - MYSQL_PASSWORD=${MYSQL_PASSWORD:-test}
+    volumes:
+      - db-data:/var/lib/mysql
+      # - ./db:/docker-entrypoint-initdb.d
+    ports:
+      - "3306:3306" 
+    networks:
+      - order_net
+
+  mysqltest_order:
+    image: mysql:8.0
+    container_name: mysqltest_order
+    environment:
+      - MYSQL_ROOT_PASSWORD=test
+      - MYSQL_DATABASE=test
+      - MYSQL_USER=test
+      - MYSQL_PASSWORD=test
+    ports:
+      - "3307:3306"
+    expose:
+      - 3307
+    networks:
+      - order_net
+
+  php_order:
+    build: ./docker
+    container_name: php_order
+    volumes:
+      - ./:/app
+      - "./docker/php.ini:/usr/local/etc/php/conf.d/php.ini"
+    restart: on-failure
+    depends_on:
+      - mysql_order   
+    networks:
+      - order_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway" # xdebug
+
+  apache:
+      image: httpd:latest
+      container_name: apache_order
+      ports:
+        - "80:80"  
+      depends_on:
+        - php_order  
+      networks:
+        - order_net
+      volumes:
+        - ./:/app
+        - ./docker/apache_httpd.conf:/usr/local/apache2/conf/httpd.conf
+
+volumes:
+  db-data:                           
+
+networks:
+  order_net:
